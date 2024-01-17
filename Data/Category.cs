@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Demo.DTO;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Demo.Data
@@ -11,5 +12,29 @@ namespace Demo.Data
         [Required]
         [MaxLength(100)]
         public string Name { get; set; }
+
+        public static CategoryDTO ToDTO(Category category)
+        {
+            return new CategoryDTO
+            {
+                Id = category.Id,
+                Name = category.Name,
+                ProductDTOs = new List<ProductDTO>(),
+            };
+        }
+
+        public CategoryDTO ToDTO()
+        {
+            return ToDTO(this);
+        }
+
+        public static Category Of(CategoryDTO dto)
+        {
+            return new Category
+            {
+                Id = dto.Id,
+                Name = dto.Name,
+            };
+        }
     }
 }

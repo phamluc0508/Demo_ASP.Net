@@ -1,4 +1,5 @@
-﻿namespace Demo.DTO
+﻿
+namespace Demo.DTO
 {
     public class ProductDTO
     {

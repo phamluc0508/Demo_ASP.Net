@@ -1,6 +1,5 @@
 ﻿using Demo.Data;
 using Demo.DTO;
-using Demo.Models;
 using Demo.Repositories;
 
 namespace Demo.Services
@@ -19,19 +18,32 @@ namespace Demo.Services
             var codeExist = _db.Categories.FirstOrDefault(p => p.Name == model.Name);
             if (codeExist != null)
             {
-                throw new Exception("name-existed");
+                throw new Exception("category-name-existed");
             }
-            var category = new Category
-            {
-                Name = model.Name
-            };
+            Category category = Category.Of(model);
             _db.Categories.Add(category);
+
+            List<Product> products = new List<Product>();
+            foreach(ProductDTO productDTO in model.ProductDTOs)
+            {
+                Product product = Product.Of(productDTO);
+                bool isExist = products.Any(p => p.Code == product.Code);
+                if(isExist)
+                {
+                    throw new Exception("product-code-duplicated");
+                }
+                products.Add(product);
+            }
             _db.SaveChanges();
-            return new CategoryDTO 
-            { 
-                Id = category.Id, 
-                Name = category.Name 
-            };
+            CategoryDTO categoryDTO = category.ToDTO();
+
+            products.ForEach(p => p.CategoryId = category.Id);
+            _db.Products.AddRange(products);
+            _db.SaveChanges();
+
+            categoryDTO.ProductDTOs = products.Select(p => p.ToDTO()).ToList();
+
+            return categoryDTO;
         }
 
         public void Delete(int id)
@@ -52,12 +64,13 @@ namespace Demo.Services
 
         public List<CategoryDTO> GetAll()
         {
-            var categories = _db.Categories.Select(c => new CategoryDTO
+            var categoryDTOs = _db.Categories.Select(c => c.ToDTO()).ToList();
+            foreach (CategoryDTO categoryDTO in categoryDTOs)
             {
-                Id = c.Id,
-                Name = c.Name,
-            });
-            return categories.ToList();
+                categoryDTO.ProductDTOs = _db.Products.Where(p => p.CategoryId == categoryDTO.Id)
+                                                        .Select(p => p.ToDTO()).ToList();
+            }
+            return categoryDTOs;
         }
 
         public CategoryDTO GetById(int id)
@@ -67,11 +80,13 @@ namespace Demo.Services
             {
                 throw new Exception("not-found-category");
             }
-            return new CategoryDTO
+            CategoryDTO categoryDTO = category.ToDTO();
+            var products = _db.Products.Where(p => p.CategoryId == category.Id);
+            foreach(var product in products)
             {
-                Id = category.Id,
-                Name = category.Name,
-            };
+                categoryDTO.ProductDTOs.Add(product.ToDTO());
+            }
+            return categoryDTO;
         }
 
         public CategoryDTO Update(int id, CategoryDTO model)
@@ -91,13 +106,59 @@ namespace Demo.Services
             }
             category.Name = model.Name;
 
+            CategoryDTO categoryDTO = Category.ToDTO(category);
+            List<ProductDTO> productDTOs = UpdateProduct(id, model.ProductDTOs);
+            foreach(var productDTO in productDTOs)
+            {
+                categoryDTO.ProductDTOs.Add(productDTO);
+            }
+
             _db.SaveChanges();
 
-            return new CategoryDTO
+            return categoryDTO;
+        }
+
+        public List<ProductDTO> UpdateProduct(int categoryId, List<ProductDTO> productDTOs)
+        {
+            List<Product> currProducts = _db.Products.Where(p => p.CategoryId == categoryId).ToList();
+            List<Product> updateProduct = new List<Product>();
+            List<ProductDTO> updateProductDTO = new List<ProductDTO>();
+
+            foreach(var productDTO in productDTOs)
             {
-                Id = category.Id,
-                Name = category.Name
-            };
+                productDTO.CategoryId = categoryId;
+                Product product = Product.Of(productDTO);
+                bool isExist = updateProduct.Any(p => p.Code == product.Code);
+                if (isExist)
+                {
+                    throw new Exception("product-code-duplicated");
+                }
+                Product curr = currProducts.FirstOrDefault(p => p.Id == product.Id);
+                if(curr == null)
+                {
+                    _db.Products.Add(product);
+                    updateProduct.Add(product);
+                } else
+                {
+                    currProducts.Remove(curr);
+
+                    curr.Code = product.Code;
+                    curr.Name = product.Name;
+                    curr.Description = product.Description;
+                    curr.Price = product.Price;
+                    curr.CategoryId = categoryId;
+
+                    updateProduct.Add(product);
+                }
+            }
+            if(currProducts.Count > 0)
+            {
+                _db.Products.RemoveRange(currProducts);
+            }
+            _db.SaveChanges();
+            updateProductDTO = updateProduct.Select(p => p.ToDTO()).ToList();
+
+            return updateProductDTO;
         }
     }
 }

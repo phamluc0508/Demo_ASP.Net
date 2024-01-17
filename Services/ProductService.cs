@@ -16,31 +16,16 @@ namespace Demo.Services
 
         public ProductDTO Create(ProductDTO productDTO)
         {
-            var codeExist = _db.Products.FirstOrDefault(p => p.Code == productDTO.Code);
+            var codeExist = _db.Products.FirstOrDefault(p => p.Code == productDTO.Code && p.CategoryId == productDTO.CategoryId);
             if (codeExist != null)
             {
-                throw new Exception("code-existed");
+                throw new Exception("code-existed-in-categoryId");
             }
-            var product = new Product
-            {
-                Code = productDTO.Code,
-                Name = productDTO.Name,
-                Price = productDTO.Price,
-                Description = productDTO.Description,
-                CategoryId = productDTO.CategoryId,
-            };
+            Product product = Product.Of(productDTO);
             _db.Products.Add(product);
             _db.SaveChanges();
 
-            return new ProductDTO
-            {
-                Id = product.Id,
-                Code = product.Code,
-                Name = product.Name,
-                Price = product.Price,
-                Description = product.Description,
-                CategoryId = product.CategoryId,
-            };
+            return product.ToDTO();
         }
 
         public void Delete(int id)
@@ -58,31 +43,14 @@ namespace Demo.Services
 
         public List<ProductDTO> GetAll()
         {
-            var products = _db.Products.Select(p => new ProductDTO
-            {
-                Id = p.Id,
-                Code = p.Code,
-                Name = p.Name,
-                Price = p.Price,
-                Description = p.Description,
-                CategoryId = p.CategoryId
-            });
-
+            var products = _db.Products.Select(p => p.ToDTO());
             return products.ToList();
         }
 
         public List<ProductDTO> GetByCategoryId(int categoryId)
         {
             var products = _db.Products.Where(p => p.CategoryId == categoryId)
-                            .Select(p => new ProductDTO
-                            {
-                                Id = p.Id,
-                                Code = p.Code,
-                                Name = p.Name,
-                                Price = p.Price,
-                                Description = p.Description,
-                                CategoryId = categoryId
-                            });
+                            .Select(p => p.ToDTO());
             return products.ToList();
         }
 
@@ -93,15 +61,7 @@ namespace Demo.Services
             {
                 throw new Exception("not-found-product");
             }
-            return new ProductDTO
-            {
-                Id = product.Id,
-                Code = product.Code,
-                Name = product.Name,
-                Price = product.Price,
-                Description = product.Description,
-                CategoryId = product.CategoryId
-            };
+            return product.ToDTO();
         }
 
         public List<ProductDTO> Search(string search, Pageable pageable)
@@ -124,15 +84,7 @@ namespace Demo.Services
                     break;
             }
             var result = PaginatedList<Product>.Search(products, pageable);
-            return result.Select(r => new ProductDTO
-            {
-                Id = r.Id,
-                Code = r.Code,
-                Name = r.Name,
-                Price = r.Price,
-                Description = r.Description,
-                CategoryId = r.CategoryId
-            }).ToList();
+            return result.Select(r => r.ToDTO()).ToList();
         }
 
         public ProductDTO Update(int id, ProductDTO productDTO)
@@ -157,15 +109,7 @@ namespace Demo.Services
 
             _db.SaveChanges();
 
-            return new ProductDTO
-            {
-                Id = product.Id,
-                Code = product.Code,
-                Name = product.Name,
-                Price = product.Price,
-                Description = product.Description,
-                CategoryId = product.CategoryId
-            };
+            return product.ToDTO();
         }
     }
 }
